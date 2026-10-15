@@ -1,0 +1,28 @@
+name: Browser preview checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate standalone HTML and embedded JavaScript
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          s=Path('preview.html').read_text()
+          assert '<script>' in s and '</script>' in s
+          assert 'datetime-local' in s and 'width' in s and 'height' in s
+          class P(HTMLParser): pass
+          P().feed(s)
+          Path('/tmp/preview-check.js').write_text(s.split('<script>',1)[1].split('</script>',1)[0])
+          PY
+          node --check /tmp/preview-check.js
