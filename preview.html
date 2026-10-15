@@ -20,7 +20,7 @@
 <div class="field"><label for="width">Width</label><input id="width" type="number" min="0" step=".01" value="4"></div>
 <div class="field"><label for="height">Length / Height</label><input id="height" type="number" min="0" step=".01" value="8"></div>
 <div class="field"><label for="qty">Quantity</label><input id="qty" type="number" min="1" step="1" value="2"></div>
-<div class="field"><label for="rate">Rate per area / piece</label><input id="rate" type="number" min="0" step=".01" value="65"></div>
+<div class="field"><label for="rate">Rate per sq selected unit / piece</label><input id="rate" type="number" min="0" step=".01" value="65"></div>
 <div class="field"><label for="due">Promised delivery</label><input id="due" type="datetime-local"></div>
 <div class="field"><label for="priority">Priority</label><select id="priority"><option>normal</option><option>high</option><option>rush</option></select></div>
 <div class="field"><label for="paid">Advance paid</label><input id="paid" type="number" min="0" value="0"></div>
@@ -32,6 +32,7 @@
 <section id="sales" class="screen"><div class="panel"><h2>Local sales history</h2><div id="salesRows" class="empty">No orders</div><div class="actions"><button class="action" id="export">Export CSV</button></div></div></section>
 <section id="guide" class="screen"><div class="panel"><h2>Keyboard guide</h2><p>F1 Help · F2 POS · F4 Production · F6 Sales · Ctrl+Enter Save · Tab/Shift+Tab fields · Ctrl+K Focus customer · Esc POS</p><h3>GitHub Codespaces</h3><p>Run <code>python3 -m http.server 8000</code> and open forwarded port 8000 → <code>preview.html</code>.</p><h3>Production prerequisites</h3><p>Native Rust+SQLite application; signed licensing; centralized LAN database server for 5 terminals; FBR integrator certification; backups, refunds, printer and Windows tests.</p></div></section>
 </main></div><div id="toast" role="status"></div>
+<script src="preview-order-math.js"></script>
 <script>
 'use strict';
 var KEY='printswift4-browser-preview-v1', orders=[];
@@ -43,21 +44,43 @@ function money(n){return 'Rs '+n.toLocaleString('en-PK',{minimumFractionDigits:2
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(x){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]})}
 function isLate(o){return o.due&&new Date(o.due)<new Date()&&o.stage!=='delivered'}
 function calculate(){
- var q=num('qty'),r=num('rate'),w=num('width'),h=num('height'),piece=val('unit')==='piece';
- var area=piece?q:w*h*q,raw=(piece?q:area)*r,discount=num('discount'),paid=num('paid');
- var total=Math.max(0,Math.round((raw-discount)*100)/100);
- el('area').textContent=piece?q+' pcs':area.toFixed(2)+' sq '+val('unit');
- el('subtotal').textContent=money(raw);el('discOut').textContent=money(discount);el('total').textContent=money(total);
- el('balance').textContent=money(Math.max(0,total-paid));el('deliveryText').textContent=val('due')?new Date(val('due')).toLocaleString():'Not selected';
- el('width').disabled=piece;el('height').disabled=piece;return {total:total,raw:raw,balance:Math.max(0,total-paid)}
+ var piece=val('unit')==='piece',c;
+ el('width').disabled=piece;el('height').disabled=piece;
+ try{
+  c=PrintSwiftOrderMath.calculate({unit:val('unit'),width:val('width'),height:val('height'),
+    quantity:val('qty'),rate:val('rate'),discount:val('discount'),paid:val('paid')});
+ }catch(e){
+  el('area').textContent='—';el('subtotal').textContent='—';el('discOut').textContent='—';
+  el('total').textContent='Check amounts';el('balance').textContent='—';
+  el('deliveryText').textContent=val('due')?new Date(val('due')).toLocaleString():'Not selected';
+  return null;
+ }
+ el('area').textContent=c.areaText+' '+c.areaUnit;
+ el('subtotal').textContent=money(c.subtotalCents/100);
+ el('discOut').textContent=money(c.discountCents/100);
+ el('total').textContent=money(c.totalCents/100);
+ el('balance').textContent=money(c.balanceCents/100);
+ el('deliveryText').textContent=val('due')?new Date(val('due')).toLocaleString():'Not selected';
+ return c;
 }
 function toast(s){el('toast').textContent=s;el('toast').style.display='block';setTimeout(function(){el('toast').style.display='none'},3500)}
 function save(){
- var c=calculate();if(num('qty')<1||num('rate')<0||num('discount')>c.raw||num('paid')>c.total||(val('unit')!=='piece'&&(num('width')<=0||num('height')<=0))){toast('Check quantity, dimensions, rate, advance and discount');return}
- var now=new Date(),due=val('due')?new Date(val('due')).toISOString():null;
- if(due&&new Date(due)<now){toast('Delivery date must be in the future');return}
- var o={id:'PS-'+Date.now(),customer:val('customer').trim()||'Walk-in',phone:val('phone'),material:val('material'),unit:val('unit'),width:num('width'),height:num('height'),qty:num('qty'),rate:num('rate'),total:c.total,balance:c.balance,due:due,priority:val('priority'),stage:'received',created:now.toISOString()};
- orders.unshift(o);localStorage.setItem(KEY,JSON.stringify(orders));render();toast('Demo order saved locally: '+o.id)
+ var c=calculate();
+ if(!c){toast('Check quantity, dimensions, rate, advance and discount');return}
+ var now=new Date(),due=null;
+ if(val('due')){
+  var parsed=new Date(val('due'));
+  if(!Number.isFinite(parsed.getTime())){toast('Invalid delivery date');return}
+  if(parsed<=now){toast('Delivery date must be in the future');return}
+  due=parsed.toISOString();
+ }
+ var o={id:'PS-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),customer:val('customer').trim()||'Walk-in',
+  phone:val('phone'),material:val('material'),unit:val('unit'),width:num('width'),height:num('height'),
+  qty:num('qty'),rate:num('rate'),total:c.totalCents/100,balance:c.balanceCents/100,due:due,
+  priority:val('priority'),stage:'received',created:now.toISOString()};
+ orders.unshift(o);
+ try{localStorage.setItem(KEY,JSON.stringify(orders))}catch(e){orders.shift();toast('Storage full or unavailable; order NOT saved');return}
+ render();toast('Demo order saved locally: '+o.id)
 }
 function render(){
  el('ordersCount').textContent=orders.length;el('salesTotal').textContent=money(orders.reduce(function(a,o){return a+o.total},0));el('unpaidTotal').textContent=money(orders.reduce(function(a,o){return a+o.balance},0));el('lateCount').textContent=orders.filter(isLate).length;
