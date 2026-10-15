@@ -1,0 +1,34 @@
+PrintSwift Proprietary Software License
+Copyright (c) 2026 the lawful copyright holder(s) of PrintSwift.
+All rights reserved.
+
+1. OWNERSHIP
+The original PrintSwift source code, compiled application, interface designs, product documentation and original branding are proprietary to their lawful owner(s) (the "Licensor"), subject to any separately owned or licensed components. Access to this repository, receiving an archive, or viewing code does not grant a general software license.
+
+2. LIMITED END-USER USE
+Only a recipient holding a valid license issued by the Licensor may install and use the unmodified PrintSwift executable on the number of devices and at the locations expressly authorized by that license. An evaluation or trial is permitted only if the Licensor separately enables and defines it. A recipient may keep reasonable backup copies solely as necessary for authorized use or where required by law. All other rights are reserved.
+
+3. RESTRICTIONS
+Except where expressly authorized in writing by the Licensor or where mandatory applicable law overrides a restriction, no person may:
+(a) copy, reproduce, publish, upload, mirror, distribute or disclose proprietary PrintSwift source code or binaries;
+(b) modify, translate, adapt, decompile, reverse-engineer, create derivative works of, or remove proprietary notices from PrintSwift;
+(c) sell, resell, sublicense, rent, lease, transfer, lend, or commercially redistribute PrintSwift or its source code;
+(d) share, sell, forge, circumvent or reuse license credentials outside their authorized scope;
+(e) present the software or a modified version as their own product.
+GitHub's platform-specific permission for people to view or fork public repositories is governed by GitHub's terms and is not a general right to sell, modify, or commercially redistribute this proprietary software.
+
+4. THIRD-PARTY COMPONENTS
+This license applies ONLY to the proprietary portions of PrintSwift. Any included third-party library, asset, code or tool retains its own copyright and applicable license (including MIT, Apache-2.0 and other licenses). Nothing in this document revokes, overrides or restricts permissions lawfully granted by those separate licenses. Third-party notices and license conditions must be preserved in distributions.
+
+5. TERMINATION
+Permission to use proprietary PrintSwift software terminates for material breach of these terms, subject to applicable law and any separate signed commercial agreement. On termination, the recipient must stop using and delete unauthorized proprietary copies, except as required by law.
+
+6. NO WARRANTY; LIABILITY
+To the maximum extent permitted by applicable law, software is supplied "AS IS" without warranties that are not separately agreed in writing. No part of these terms excludes consumer or statutory rights that cannot lawfully be excluded.
+
+7. COMMERCIAL TERMS
+Seat counts, payment terms, support, upgrades, term and territorial scope are defined by the written license or purchase agreement from the Licensor. A software license does not transfer copyright ownership.
+
+For commercial source access, modification rights, distribution permission, resale rights, or any exception, obtain prior explicit written authorization from the PrintSwift rights holder.
+
+This document is a draft proprietary license for legal review before commercial publication.
