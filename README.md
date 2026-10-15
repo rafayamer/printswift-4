@@ -1,47 +1,37 @@
-# PrintSwift 4 — offline printing POS (development)
+# PrintSwift 4 — proprietary offline POS (development)
 
-PrintSwift is an offline-first printing-shop point-of-sale and production-management application, built in **Tauri 2 + Svelte 5 + Rust + SQLite**.
+**Copyright © 2026 the lawful copyright holder(s) of PrintSwift. All rights reserved.**
 
-> **Status: DEVELOPMENT / NOT READY FOR COMMERCIAL RELEASE.** This repository is being initialized for Codespaces. The full native RC3 source is distributed separately as an archive until imported and native builds pass; do not assume the public repository is a production installer.
+> **PROPRIETARY SOFTWARE — NO UNAUTHORIZED COPYING, MODIFICATION, DISTRIBUTION OR RESALE.** Read [LICENSE](LICENSE), [EULA.md](EULA.md) and the [release protection policy](docs/PROPRIETARY_RELEASE_POLICY.md). Third-party dependencies preserve their separate open-source licenses.
 
-## Design and operation
+> **DEVELOPMENT ONLY / NOT READY FOR COMMERCIAL RELEASE.** This public repository currently provides a Codespaces/browser UI workbench and release documents—not a native installable production application. The complete source is separately packaged as PrintSwift RC4 until safely imported, reviewed and tested. **Do not commit the unmodified native archive to this public repo:** its legacy licensing implementation still contains an embedded secret.
 
-- Large-format and piece-based line items; width × height × quantity × rate; dealer-specific rates.
-- Drag/drop artwork with filename-based material and customer matching.
-- Delivery date/time in POS; production stages and manually copied WhatsApp messages.
-- Dark cinematic glass design with light/dark controls, keyboard shortcuts and F1 quick reference.
-- Local SQLite orders, inventory, payments and backup in the native source.
+PrintSwift is designed as an offline-first printing-shop POS / production-management desktop application using **Tauri 2 + Svelte 5 + Rust + SQLite**.
 
-## Try in Codespaces
+## Browser preview in GitHub Codespaces
 
-Click **Code → Codespaces → Create codespace**. Run:
+Choose **Code → Codespaces → Create codespace**. The devcontainer starts a local preview server on port 8000. Open the forwarded port and select `preview.html` (or manually run `python3 -m http.server 8000`).
 
-```bash
-python3 -m http.server 8000
-```
+The interactive preview includes:
+- Width × height × quantity × rate for measured jobs; piece-based pricing
+- Keyboard-first navigation, F1 help and tab sequencing
+- Promised delivery date/time, rush priority and job-stage selection
+- Manually copyable WhatsApp delay/status messages
+- Compact dark glass design, optional light theme
+- Local browser-only demo records; **not the native shop SQLite database**
 
-Open forwarded port **8000** and choose `preview.html`. This is a browser demonstration, not the native Rust backend.
+## Native release roadmap
 
-## Import the native source
+The separately delivered **PrintSwift 1.0 RC4 Proprietary Licensed Source ZIP** contains the latest native project with updated legal license files. Before moving that source into a public repository, eliminate any embedded license signing secrets, FBR tokens, customer records or licensing inventory, and audit proprietary artwork and dependency notices. For source secrecy, make this repository **private** in GitHub settings. GitHub's terms permit public-repository viewing/forking through the platform even where your proprietary license restricts other use.
 
-Extract the **PrintSwift 1.0 RC3 Source** archive provided alongside this repository. Upload its contents into this repository (retaining the directory structure), or from a local terminal run:
+The native development prerequisites are documented in the source archive. Native Windows builds, real printer testing, payments/inventory reconciliations, secure offline 30-day trial + signed license activation, and five-PC LAN access are **not yet certified or completed**.
 
-```bash
-git clone https://github.com/rafayamer/printswift-4.git
-# Copy the extracted RC3 files into this directory, preserving the existing .git directory.
-git add .
-git commit -m "Import native PrintSwift RC3"
-git push
-```
+## Business/release blockers
 
-Then run `pnpm install`, `pnpm check`, `pnpm build`, and perform the native Windows Tauri build. **Do not overwrite this repo's `README.md` without preserving this release warning.**
+1. Signed license entitlement verification with publisher-only private signing key; keep the 1,000 inventory codes private.
+2. Five-computer operation through an authenticated single-writer LAN service, **not** a shared SQLite network file.
+3. Full FBR sandbox/live integration through the applicable official/licensed integrator, with real accepted acknowledgments. [Shop-owner FBR setup guidance](docs/FBR_SETUP.md).
+4. Native installer, offline backup/restore, hardware, accounting, security and end-to-end testing.
+5. Owner acceptance on the exact final version.
 
-## Security and regulatory release blockers
-
-- Existing native source has legacy embedded-secret licensing. **Replace with public-key signature verification before commercial distribution.**
-- The requested 1,000 codes are held in a separate private inventory and are **not activated** by the app yet. Do not commit license codes, private signing keys, customer records or FBR tokens.
-- Five-computer LAN operation needs a central single-writer shop server and authenticated terminal API. **Do not share a live SQLite file over a network drive.**
-- FBR live integration requires applicable registration, integrator authorization, test scenarios, accepted invoice acknowledgments and production credentials. Tax settings alone do not provide compliance.
-- Tested Windows installer, signed updates, cash drawer/receipt printer validation, error handling, restores, refunds and ledger reconciliation remain release gates.
-
-Do not create a public GitHub Release or invoice claiming FBR verification until the release checklist has passed.
+No user should be told an FBR invoice is verified until an actual accepted live acknowledgment is recorded. Do not publish a GitHub Release or sell this build as production-ready until [release gates](docs/RELEASE_GATES.md) have passed.
