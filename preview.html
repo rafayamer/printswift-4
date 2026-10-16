@@ -25,14 +25,15 @@
 <div class="field"><label for="priority">Priority</label><select id="priority"><option>normal</option><option>high</option><option>rush</option></select></div>
 <div class="field"><label for="paid">Advance paid</label><input id="paid" type="number" min="0" value="0"></div>
 <div class="field"><label for="discount">Discount</label><input id="discount" type="number" min="0" value="0"></div></div>
-<div class="actions"><button class="action primary" id="save">Save demo order <span class="kbd">Ctrl+Enter</span></button><button class="action" id="addDemo">Load example</button><button class="action" id="invoice">Print preview</button></div>
+<div class="actions"><button class="action primary" id="save">Save demo order <span class="kbd">Ctrl+Enter</span></button><button class="action" id="addDemo">Load example</button><button class="action" id="invoice">A4 invoice <span class="kbd">F7</span></button><button class="action" id="receipt">80 mm receipt <span class="kbd">F8</span></button></div>
 <p class="notice">Demonstration only: no production transactions, inventory deduction or real artwork archiving.</p></div>
 <div class="panel"><h2>Order summary</h2><p class="muted">Calculated live; amounts rounded to 2 decimals</p><hr style="border:0;border-top:1px solid var(--line)"><div class="row" style="justify-content:space-between"><span>Area / units</span><strong id="area">—</strong></div><div class="row" style="justify-content:space-between;margin-top:15px"><span>Subtotal</span><b id="subtotal">Rs 0</b></div><div class="row" style="justify-content:space-between;margin-top:10px"><span>Discount</span><b id="discOut">Rs 0</b></div><hr style="border:0;border-top:1px solid var(--line)"><small class="muted">Invoice total</small><div id="total" class="sum">Rs 0</div><p>Balance due: <b id="balance">Rs 0</b></p><p>Delivery: <b id="deliveryText">Not selected</b></p><div class="panel" style="margin-top:20px"><b>FBR status</b><p class="muted">Not connected. No FBR invoice ID or verification is generated.</p><label class="muted"><input type="checkbox" id="taxPreview" style="width:auto"> Show indicative sales tax calculation (demo only)</label></div></div></div></section>
 <section id="jobs" class="screen"><div class="panel"><h2>Production board</h2><p class="muted">Change stages separately from balances; use the copy-delay button only for overdue jobs.</p><div id="jobRows" class="empty">No saved demo jobs</div></div></section>
 <section id="sales" class="screen"><div class="panel"><h2>Local sales history</h2><div id="salesRows" class="empty">No orders</div><div class="actions"><button class="action" id="export">Export CSV</button></div></div></section>
-<section id="guide" class="screen"><div class="panel"><h2>Keyboard guide</h2><p>F1 Help · F2 POS · F4 Production · F6 Sales · Ctrl+Enter Save · Tab/Shift+Tab fields · Ctrl+K Focus customer · Esc POS</p><h3>GitHub Codespaces</h3><p>Run <code>python3 -m http.server 8000</code> and open forwarded port 8000 → <code>preview.html</code>.</p><h3>Production prerequisites</h3><p>Native Rust+SQLite application; signed licensing; centralized LAN database server for 5 terminals; FBR integrator certification; backups, refunds, printer and Windows tests.</p></div></section>
+<section id="guide" class="screen"><div class="panel"><h2>Keyboard guide</h2><p>F1 Help · F2 POS · F4 Production · F6 Sales · F7 A4 invoice · F8 80 mm receipt · Ctrl+Enter Save · Tab/Shift+Tab fields · Ctrl+K Focus customer · Esc POS</p><h3>GitHub Codespaces</h3><p>Run <code>python3 -m http.server 8000</code> and open forwarded port 8000 → <code>preview.html</code>.</p><h3>Production prerequisites</h3><p>Native Rust+SQLite application; signed licensing; centralized LAN database server for 5 terminals; FBR integrator certification; backups, refunds, printer and Windows tests.</p></div></section>
 </main></div><div id="toast" role="status"></div>
 <script src="preview-order-math.js"></script>
+<script src="invoice-template.js"></script>
 <script>
 'use strict';
 var KEY='printswift4-browser-preview-v1', orders=[];
@@ -63,6 +64,35 @@ function calculate(){
  el('deliveryText').textContent=val('due')?new Date(val('due')).toLocaleString():'Not selected';
  return c;
 }
+
+function rateInPaisa(){
+ // The pricing engine has already validated a nonnegative rate with at most two decimal places.
+ var parts=val('rate').trim().split('.');
+ var result=BigInt(parts[0])*100n+BigInt((parts[1]||'').padEnd(2,'0'));
+ if(result>9000000000000n)throw Error('Rate exceeds printable invoice range');
+ return Number(result);
+}
+function invoiceOrder(c,id,created,due){
+ return {id:id,customer:val('customer').trim()||'Walk-in',phone:val('phone'),material:val('material'),
+  unit:val('unit'),width:num('width'),height:num('height'),qty:num('qty'),rate:num('rate'),
+  rateCents:rateInPaisa(),totalCents:c.totalCents,paidCents:c.paidCents,
+  discountCents:c.discountCents,total:c.totalCents/100,balance:c.balanceCents/100,
+  due:due,priority:val('priority'),stage:'received',created:created};
+}
+function openSavedInvoice(o,paper){
+ if(!o||!['totalCents','paidCents','discountCents','rateCents'].every(function(k){return Number.isSafeInteger(o[k])})){
+  toast('Legacy demo order has incomplete invoice data. Create a new order to print accurately.');return;
+ }
+ try{PrintSwiftInvoice.open(o,paper)}catch(e){toast('Invoice unavailable: '+e.message)}
+}
+function openDraftInvoice(paper){
+ var c=calculate();
+ if(!c){toast('Correct order amounts before previewing an invoice');return}
+ try{
+  var due=val('due')?new Date(val('due')).toISOString():null;
+  openSavedInvoice(invoiceOrder(c,'DRAFT',new Date().toISOString(),due),paper);
+ }catch(e){toast('Invoice unavailable: '+e.message)}
+}
 function toast(s){el('toast').textContent=s;el('toast').style.display='block';setTimeout(function(){el('toast').style.display='none'},3500)}
 function save(){
  var c=calculate();
@@ -74,10 +104,7 @@ function save(){
   if(parsed<=now){toast('Delivery date must be in the future');return}
   due=parsed.toISOString();
  }
- var o={id:'PS-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),customer:val('customer').trim()||'Walk-in',
-  phone:val('phone'),material:val('material'),unit:val('unit'),width:num('width'),height:num('height'),
-  qty:num('qty'),rate:num('rate'),total:c.totalCents/100,balance:c.balanceCents/100,due:due,
-  priority:val('priority'),stage:'received',created:now.toISOString()};
+ var o=invoiceOrder(c,'PS-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),now.toISOString(),due);
  orders.unshift(o);
  try{localStorage.setItem(KEY,JSON.stringify(orders))}catch(e){orders.shift();toast('Storage full or unavailable; order NOT saved');return}
  render();toast('Demo order saved locally: '+o.id)
@@ -85,16 +112,26 @@ function save(){
 function render(){
  el('ordersCount').textContent=orders.length;el('salesTotal').textContent=money(orders.reduce(function(a,o){return a+o.total},0));el('unpaidTotal').textContent=money(orders.reduce(function(a,o){return a+o.balance},0));el('lateCount').textContent=orders.filter(isLate).length;
  el('jobRows').innerHTML=orders.length?orders.map(function(o,i){return '<div class="job"><div><b>'+esc(o.id)+' · '+esc(o.customer)+'</b><small>'+esc(o.material)+' · Due '+(o.due?new Date(o.due).toLocaleString():'Not set')+'</small></div><div class="row">'+(isLate(o)?'<span class="badge">LATE</span>':'')+'<select aria-label="Production stage" data-stage="'+i+'">'+['received','design','approval','printing','finishing','ready','delivered','on_hold'].map(function(s){return '<option '+(s===o.stage?'selected':'')+'>'+s+'</option>'}).join('')+'</select><button data-copy="'+i+'">Copy '+(isLate(o)?'delay':'status')+' message</button></div></div>'}).join(''):'No saved demo jobs';
- el('salesRows').innerHTML=orders.length?'<table><thead><tr><th>Invoice</th><th>Customer</th><th>Material</th><th>Total</th><th>Balance</th></tr></thead><tbody>'+orders.map(function(o){return '<tr><td>'+esc(o.id)+'</td><td>'+esc(o.customer)+'</td><td>'+esc(o.material)+'</td><td>'+money(o.total)+'</td><td>'+money(o.balance)+'</td></tr>'}).join('')+'</tbody></table>':'No orders';
+ el('salesRows').innerHTML=orders.length?'<table><thead><tr><th>Invoice</th><th>Customer</th><th>Material</th><th>Total</th><th>Balance</th><th>Print</th></tr></thead><tbody>'+orders.map(function(o,i){
+  var printable=['totalCents','paidCents','discountCents','rateCents'].every(function(k){return Number.isSafeInteger(o[k])});
+  var buttons=printable?'<button class="action" data-invoice-a4="'+i+'">A4</button> <button class="action" data-invoice-80="'+i+'">80 mm</button>':'<small class="muted">Legacy order</small>';
+  return '<tr><td>'+esc(o.id)+'</td><td>'+esc(o.customer)+'</td><td>'+esc(o.material)+'</td><td>'+money(o.total)+'</td><td>'+money(o.balance)+'</td><td>'+buttons+'</td></tr>'
+ }).join('')+'</tbody></table>':'No orders';
 }
 function section(name){document.querySelectorAll('.screen').forEach(function(x){x.classList.toggle('active',x.id===name)});document.querySelectorAll('.menu button').forEach(function(x){x.classList.toggle('on',x.dataset.screen===name)});el('pageName').textContent='· '+({pos:'New order',jobs:'Production board',sales:'Sales history',guide:'Help'}[name]);}
 document.querySelectorAll('.menu button').forEach(function(x){x.onclick=function(){section(x.dataset.screen)}});
 document.querySelectorAll('#pos input,#pos select').forEach(function(x){x.addEventListener('input',calculate)});
 el('save').onclick=save;el('theme').onclick=function(){document.body.classList.toggle('light')};el('addDemo').onclick=function(){el('width').value=4;el('height').value=8;el('qty').value=2;el('rate').value=65;el('unit').value='ft';calculate()};
-el('invoice').onclick=function(){window.print()};
+el('invoice').onclick=function(){openDraftInvoice('a4')};
+el('receipt').onclick=function(){openDraftInvoice('receipt80')};
+el('salesRows').addEventListener('click',function(e){
+ var a4=e.target.dataset.invoiceA4,receipt=e.target.dataset.invoice80;
+ var idx=a4!==undefined?a4:receipt;
+ if(idx!==undefined&&orders[Number(idx)])openSavedInvoice(orders[Number(idx)],a4!==undefined?'a4':'receipt80');
+});
 el('jobRows').addEventListener('change',function(e){var i=Number(e.target.dataset.stage);if(Number.isInteger(i)&&orders[i]){orders[i].stage=e.target.value;localStorage.setItem(KEY,JSON.stringify(orders));render();toast('Production stage saved')}});
 el('jobRows').addEventListener('click',function(e){if(!e.target.dataset.copy)return;var o=orders[Number(e.target.dataset.copy)],late=isLate(o),msg='Hello '+o.customer+',\n'+(late?'We apologize that order '+o.id+' is delayed. We will confirm a revised delivery time shortly.':'Your print order '+o.id+' is currently '+o.stage+'.')+'\nThank you for your patience.';navigator.clipboard.writeText(msg).then(function(){toast('WhatsApp message copied')},function(){window.prompt('Copy message:',msg)})});
 el('export').onclick=function(){var csv='Invoice,Customer,Material,Total,Balance,Due\n'+orders.map(function(o){return [o.id,o.customer,o.material,o.total,o.balance,o.due||''].map(function(x){return '"'+String(x).replace(/"/g,'""')+'"'}).join(',')}).join('\n');var link=document.createElement('a');link.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));link.download='printswift-demo-sales.csv';link.click();URL.revokeObjectURL(link.href)};
-document.addEventListener('keydown',function(e){if(e.key==='F1'){e.preventDefault();section('guide')}else if(e.key==='F2'){e.preventDefault();section('pos')}else if(e.key==='F4'){e.preventDefault();section('jobs')}else if(e.key==='F6'){e.preventDefault();section('sales')}else if(e.key==='Escape'){section('pos')}else if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();section('pos');save()}else if(e.ctrlKey&&e.key.toLowerCase()==='k'){e.preventDefault();section('pos');el('customer').focus()}});
+document.addEventListener('keydown',function(e){if(e.key==='F1'){e.preventDefault();section('guide')}else if(e.key==='F2'){e.preventDefault();section('pos')}else if(e.key==='F4'){e.preventDefault();section('jobs')}else if(e.key==='F6'){e.preventDefault();section('sales')}else if(e.key==='F7'){e.preventDefault();section('pos');openDraftInvoice('a4')}else if(e.key==='F8'){e.preventDefault();section('pos');openDraftInvoice('receipt80')}else if(e.key==='Escape'){section('pos')}else if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();section('pos');save()}else if(e.ctrlKey&&e.key.toLowerCase()==='k'){e.preventDefault();section('pos');el('customer').focus()}});
 calculate();render();
 </script></body></html>
