@@ -1,2 +1,12 @@
-const assert = require('node:assert/strict');
-assert.equal(1, 1);
+const a=require('node:assert/strict');
+global.window={};require('../invoice-template.js');
+const r=window.PrintSwiftInvoice.render;
+const o={id:'PS-1',customer:'Test',unit:'piece',qty:2,rateCents:500,totalCents:1000,paidCents:200,discountCents:0};
+const a4=r(o,'a4'),p80=r(o,'receipt80');
+a.ok(a4.includes('Rs 10.00'));
+a.ok(a4.includes('Rs 8.00'));
+a.ok(a4.includes('NOT FBR VERIFIED'));
+a.ok(p80.includes('size:80mm auto'));
+a.throws(()=>r({...o,paidCents:2000}));
+a.throws(()=>r({...o,qty:0}));
+console.log('Invoice smoke checks passed');
